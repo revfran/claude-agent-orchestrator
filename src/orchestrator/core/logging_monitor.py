@@ -9,6 +9,8 @@ class AgentMetrics:
     errors: int = 0
     total_processing_time_ms: float = 0.0
     revisions_triggered: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
     last_active: float = field(default_factory=time.time)
 
 
@@ -48,6 +50,11 @@ class Monitor:
         m.revisions_triggered += 1
         self.logger.info(f"Agent {agent_id}: revision triggered")
 
+    def record_tokens(self, agent_id: str, input_tokens: int, output_tokens: int):
+        m = self.get_metrics(agent_id)
+        m.input_tokens += input_tokens
+        m.output_tokens += output_tokens
+
     def summary(self) -> dict[str, dict]:
         return {
             agent_id: {
@@ -55,6 +62,9 @@ class Monitor:
                 "errors": m.errors,
                 "total_processing_time_ms": round(m.total_processing_time_ms, 1),
                 "revisions_triggered": m.revisions_triggered,
+                "input_tokens": m.input_tokens,
+                "output_tokens": m.output_tokens,
+                "total_tokens": m.input_tokens + m.output_tokens,
             }
             for agent_id, m in self._metrics.items()
         }

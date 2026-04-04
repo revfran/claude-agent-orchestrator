@@ -1,0 +1,182 @@
+{
+  "no_revisions": {
+    "iterations": 5,
+    "total_time_ms": {
+      "mean": 0.72,
+      "median": 0.65,
+      "stdev": 0.15,
+      "min": 0.61,
+      "max": 0.98
+    },
+    "total_messages_processed": 6,
+    "total_revisions": 0,
+    "all_passed": true,
+    "agent_metrics": {
+      "acq": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.1,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 30,
+        "total_tokens": 130
+      },
+      "arch": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 38,
+        "total_tokens": 138
+      },
+      "qa": {
+        "messages_processed": 2,
+        "errors": 0,
+        "total_processing_time_ms": 0.1,
+        "revisions_triggered": 0,
+        "input_tokens": 200,
+        "output_tokens": 107,
+        "total_tokens": 307
+      },
+      "dev": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 51,
+        "total_tokens": 151
+      },
+      "rep": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 43,
+        "total_tokens": 143
+      }
+    }
+  },
+  "arch_revision": {
+    "iterations": 5,
+    "total_time_ms": {
+      "mean": 0.81,
+      "median": 0.81,
+      "stdev": 0.06,
+      "min": 0.74,
+      "max": 0.89
+    },
+    "total_messages_processed": 8,
+    "total_revisions": 1,
+    "all_passed": true,
+    "agent_metrics": {
+      "acq": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 15,
+        "total_tokens": 115
+      },
+      "arch": {
+        "messages_processed": 2,
+        "errors": 0,
+        "total_processing_time_ms": 0.1,
+        "revisions_triggered": 1,
+        "input_tokens": 200,
+        "output_tokens": 49,
+        "total_tokens": 249
+      },
+      "qa": {
+        "messages_processed": 3,
+        "errors": 0,
+        "total_processing_time_ms": 0.2,
+        "revisions_triggered": 0,
+        "input_tokens": 300,
+        "output_tokens": 135,
+        "total_tokens": 435
+      },
+      "dev": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 30,
+        "total_tokens": 130
+      },
+      "rep": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 29,
+        "total_tokens": 129
+      }
+    }
+  },
+  "code_revision": {
+    "iterations": 5,
+    "total_time_ms": {
+      "mean": 0.91,
+      "median": 0.91,
+      "stdev": 0.04,
+      "min": 0.86,
+      "max": 0.95
+    },
+    "total_messages_processed": 8,
+    "total_revisions": 1,
+    "all_passed": true,
+    "agent_metrics": {
+      "acq": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 13,
+        "total_tokens": 113
+      },
+      "arch": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 13,
+        "total_tokens": 113
+      },
+      "qa": {
+        "messages_processed": 3,
+        "errors": 0,
+        "total_processing_time_ms": 0.2,
+        "revisions_triggered": 0,
+        "input_tokens": 300,
+        "output_tokens": 124,
+        "total_tokens": 424
+      },
+      "dev": {
+        "messages_processed": 2,
+        "errors": 0,
+        "total_processing_time_ms": 0.1,
+        "revisions_triggered": 1,
+        "input_tokens": 200,
+        "output_tokens": 58,
+        "total_tokens": 258
+      },
+      "rep": {
+        "messages_processed": 1,
+        "errors": 0,
+        "total_processing_time_ms": 0.0,
+        "revisions_triggered": 0,
+        "input_tokens": 100,
+        "output_tokens": 23,
+        "total_tokens": 123
+      }
+    }
+  }
+}

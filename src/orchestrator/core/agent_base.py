@@ -87,4 +87,10 @@ class BaseAgent(ABC):
             system=system or self.config.system_prompt,
             messages=[{"role": "user", "content": prompt}],
         )
+        if self.monitor and hasattr(response, "usage"):
+            self.monitor.record_tokens(
+                self.agent_id,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+            )
         return response.content[0].text

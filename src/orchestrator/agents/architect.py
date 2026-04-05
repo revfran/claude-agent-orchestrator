@@ -45,6 +45,12 @@ class ArchitectAgent(BaseAgent):
 
     async def _handle_revision(self, message: Message) -> dict:
         self._revision_count += 1
+        if self.monitor:
+            self.monitor.emit(
+                "revision_started",
+                agent=self.agent_id,
+                revision_number=self._revision_count,
+            )
         risk_assessment = message.payload.get("risk_assessment", "")
         original_architecture = message.payload.get("architecture", "")
         query = message.payload.get("query", "")

@@ -27,9 +27,18 @@ class BaseAgent(ABC):
     async def start(self):
         self.state = AgentState.RUNNING
         self._task = asyncio.create_task(self._run_loop())
+        if self.monitor:
+            self.monitor.emit(
+                "agent_started",
+                agent=self.agent_id,
+                input_channels=self.config.input_channels,
+                output_channels=self.config.output_channels,
+            )
 
     async def stop(self):
         self.state = AgentState.STOPPED
+        if self.monitor:
+            self.monitor.emit("agent_stopped", agent=self.agent_id)
         if self._task:
             self._task.cancel()
             try:
@@ -44,6 +53,16 @@ class BaseAgent(ABC):
                     msg = await asyncio.wait_for(self._inbox.get(), timeout=1.0)
                 except asyncio.TimeoutError:
                     continue
+
+                if self.monitor:
+                    self.monitor.emit(
+                        "message_received",
+                        agent=self.agent_id,
+                        source=msg.source,
+                        channel=msg.target,
+                        msg_type=msg.msg_type,
+                        message_id=msg.id,
+                    )
 
                 start = time.monotonic()
                 try:
@@ -66,6 +85,14 @@ class BaseAgent(ABC):
             return
         for channel in self.config.output_channels:
             msg = Message(source=self.agent_id, target=channel, payload=payload)
+            if self.monitor:
+                self.monitor.emit(
+                    "message_published",
+                    agent=self.agent_id,
+                    channel=channel,
+                    msg_type=msg.msg_type,
+                    message_id=msg.id,
+                )
             await self._message_bus.publish(channel, msg)
 
     async def _publish_to(self, channel: str, payload: dict, msg_type: str = "data"):
@@ -74,6 +101,14 @@ class BaseAgent(ABC):
         msg = Message(
             source=self.agent_id, target=channel, payload=payload, msg_type=msg_type
         )
+        if self.monitor:
+            self.monitor.emit(
+                "message_published",
+                agent=self.agent_id,
+                channel=channel,
+                msg_type=msg_type,
+                message_id=msg.id,
+            )
         await self._message_bus.publish(channel, msg)
 
     @abstractmethod

@@ -30,7 +30,11 @@ class DeveloperAgent(BaseAgent):
             f"Provide:\n"
             f"1. Complete implementation code\n"
             f"2. Implementation notes explaining key decisions\n"
-            f"3. Any assumptions made"
+            f"3. Any assumptions made\n"
+            f"4. Documentation updates: list any project documentation "
+            f"(README, ARCHITECTURE.md, CLAUDE.md, docstrings, inline comments) "
+            f"that should be created or updated to reflect these changes. "
+            f"For each, state the file, what section to update, and the new content."
         )
 
         result = await self.call_claude(prompt)
@@ -38,6 +42,7 @@ class DeveloperAgent(BaseAgent):
         return {
             "code": result,
             "implementation_notes": result,
+            "doc_updates": result,
             "query": query,
             "architecture": architecture,
             "review_type": "code",
@@ -46,6 +51,12 @@ class DeveloperAgent(BaseAgent):
 
     async def _handle_revision(self, message: Message) -> dict:
         self._revision_count += 1
+        if self.monitor:
+            self.monitor.emit(
+                "revision_started",
+                agent=self.agent_id,
+                revision_number=self._revision_count,
+            )
         code_risks = message.payload.get("code_risks", "")
         test_cases = message.payload.get("test_cases", [])
         original_code = message.payload.get("code", "")
@@ -57,7 +68,9 @@ class DeveloperAgent(BaseAgent):
             f"Original Code:\n{original_code}\n\n"
             f"Risk Assessment:\n{code_risks}\n\n"
             f"Test Cases to Pass:\n{json.dumps(test_cases) if isinstance(test_cases, list) else test_cases}\n\n"
-            f"Fix all HIGH and MEDIUM severity issues. Explain what changes you made."
+            f"Fix all HIGH and MEDIUM severity issues. Explain what changes you made.\n"
+            f"Also update the documentation section: list any docs that need updating "
+            f"to reflect the revised code."
         )
 
         result = await self.call_claude(prompt)
@@ -68,6 +81,7 @@ class DeveloperAgent(BaseAgent):
         return {
             "code": result,
             "implementation_notes": result,
+            "doc_updates": result,
             "query": query,
             "architecture": architecture,
             "review_type": "code",

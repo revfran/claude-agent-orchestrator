@@ -23,10 +23,18 @@ class Orchestrator:
 
     async def run(self):
         self.monitor.logger.info("Starting orchestrator...")
+        self.monitor.emit(
+            "orchestrator_starting",
+            agent_count=len(self.agent_manager.agents),
+            agents=list(self.agent_manager.agents.keys()),
+        )
         await self.agent_manager.start_all()
         self.monitor.logger.info("All agents started.")
+        self.monitor.emit("orchestrator_ready")
 
     async def shutdown(self):
         await self.agent_manager.stop_all()
         self.monitor.logger.info("Orchestrator shut down.")
-        self.monitor.logger.info(f"Metrics: {self.monitor.summary()}")
+        summary = self.monitor.summary()
+        self.monitor.logger.info(f"Metrics: {summary}")
+        self.monitor.emit("orchestrator_shutdown", metrics=summary)

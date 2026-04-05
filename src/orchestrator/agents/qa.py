@@ -32,7 +32,12 @@ class QAAgent(BaseAgent):
             f'"has_blocking_risks": true/false, '
             f'"summary": "..."}}\n\n'
             f"Consider: scalability, security, coupling, single points of failure, "
-            f"maintainability, and edge cases."
+            f"maintainability, and edge cases.\n\n"
+            f"Also check: does the proposed architecture introduce concepts, components, "
+            f"or behaviours that are not reflected in the existing project documentation "
+            f"(README, ARCHITECTURE.md, CLAUDE.md)? If so, add a MEDIUM-severity risk "
+            f'item with description starting with "Documentation gap:" explaining what '
+            f"is missing."
         )
 
         result = await self.call_claude(prompt)
@@ -41,6 +46,14 @@ class QAAgent(BaseAgent):
         needs_revision = has_blocking and revision_count < max_revisions
 
         if needs_revision:
+            if self.monitor:
+                self.monitor.emit(
+                    "qa_gate_rejected",
+                    agent=self.agent_id,
+                    review_type="architecture",
+                    revision_count=revision_count,
+                    max_revisions=max_revisions,
+                )
             # Send back to architect for revision
             await self._publish_to(
                 "arch_revision",
@@ -56,6 +69,13 @@ class QAAgent(BaseAgent):
             return None  # Don't forward to next stage
 
         # Approved — forward to developer
+        if self.monitor:
+            self.monitor.emit(
+                "qa_gate_approved",
+                agent=self.agent_id,
+                review_type="architecture",
+                revisions_made=revision_count,
+            )
         risk_log = {
             "architecture_risks": result,
             "revisions_made": revision_count,
@@ -94,7 +114,12 @@ class QAAgent(BaseAgent):
             f'"test_cases": ["test case description 1", "test case description 2"], '
             f'"summary": "..."}}\n\n'
             f"Consider: bugs, security vulnerabilities, race conditions, "
-            f"missing error handling, and edge cases."
+            f"missing error handling, and edge cases.\n\n"
+            f"Also check: does this code change introduce new public APIs, config options, "
+            f"CLI flags, log formats, or observable behaviours not covered in the project "
+            f"documentation? If so, add a MEDIUM-severity risk item with description "
+            f'starting with "Documentation gap:" explaining what the user would not '
+            f"discover from reading the current docs."
         )
 
         result = await self.call_claude(prompt)
@@ -104,6 +129,14 @@ class QAAgent(BaseAgent):
         needs_revision = has_blocking and revision_count < max_revisions
 
         if needs_revision:
+            if self.monitor:
+                self.monitor.emit(
+                    "qa_gate_rejected",
+                    agent=self.agent_id,
+                    review_type="code",
+                    revision_count=revision_count,
+                    max_revisions=max_revisions,
+                )
             await self._publish_to(
                 "code_revision",
                 {
@@ -119,6 +152,13 @@ class QAAgent(BaseAgent):
             return None
 
         # Approved — forward to reporting
+        if self.monitor:
+            self.monitor.emit(
+                "qa_gate_approved",
+                agent=self.agent_id,
+                review_type="code",
+                revisions_made=revision_count,
+            )
         code_risk_log = {
             "code_risks": result,
             "test_cases": test_cases,

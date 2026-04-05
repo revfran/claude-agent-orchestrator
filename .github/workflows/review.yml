@@ -1,0 +1,24 @@
+name: Orchestrator Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run orchestrator review
+        uses: ./
+        with:
+          focus: "general"
+          # Add your API key as a repo secret for AI-powered reviews:
+          # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

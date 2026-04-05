@@ -128,7 +128,70 @@ src/orchestrator/
 │   └── reporting.py       # Reporting Agent
 ├── pipeline.py            # Pipeline builder with QA feedback loops
 ├── orchestrator.py        # Top-level Orchestrator facade
-└── review.py              # Project scanner for reviewing external codebases
+├── review.py              # Project scanner for reviewing external codebases
+└── ci.py                  # CI runner — reviews PRs and posts reports
+```
+
+## GitHub Action (Use in Any Project)
+
+Add the orchestrator as a GitHub Action to get automated reviews on every PR. The review report is posted as a PR comment.
+
+**Add to your project** (`.github/workflows/orchestrator-review.yml`):
+
+```yaml
+name: Orchestrator Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run orchestrator review
+        uses: revfran/claude-agent-orchestrator@main
+        with:
+          focus: "security"  # or: general, performance, quality
+```
+
+**Two modes:**
+
+| Mode | Trigger | What it does |
+|------|---------|-------------|
+| **Structural** (default) | No API key | Scans files for risk patterns (command injection, eval, hardcoded secrets, bare excepts, missing tests). Fast, free, deterministic. |
+| **AI-powered** | `ANTHROPIC_API_KEY` secret set | Runs the full 5-agent pipeline with QA feedback loops. Produces architecture review, code review, risk assessment, and concrete fixes. |
+
+To enable AI mode, add your API key as a repository secret and pass it:
+
+```yaml
+      - uses: revfran/claude-agent-orchestrator@main
+        with:
+          focus: "security"
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Outputs:**
+
+| Output | Description |
+|--------|------------|
+| `report` | The full review report in markdown |
+| `has-high-risks` | `"true"` if HIGH severity risks were found |
+
+You can use these to gate merges:
+
+```yaml
+      - name: Fail if high risks
+        if: steps.review.outputs.has-high-risks == 'true'
+        run: exit 1
 ```
 
 ## Benchmarks

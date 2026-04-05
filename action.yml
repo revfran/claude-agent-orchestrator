@@ -1,0 +1,101 @@
+name: "Claude Agent Orchestrator Review"
+description: "Run a structured code review with QA risk assessment on PR changed files"
+
+inputs:
+  focus:
+    description: "Review focus area: general, security, performance, quality"
+    required: false
+    default: "general"
+  anthropic-api-key:
+    description: "Anthropic API key for AI-powered reviews (optional — structural analysis runs without it)"
+    required: false
+    default: ""
+  base-ref:
+    description: "Base branch for diff"
+    required: false
+    default: "origin/main"
+  python-version:
+    description: "Python version to use"
+    required: false
+    default: "3.11"
+
+outputs:
+  report-file:
+    description: "Path to the review report markdown file"
+    value: "review_report.md"
+  has-high-risks:
+    description: "Whether HIGH severity risks were found"
+    value: ${{ steps.check.outputs.has-high-risks }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install orchestrator
+      shell: bash
+      run: pip install -e "${{ github.action_path }}[dev]"
+
+    - name: Fetch base branch
+      shell: bash
+      run: git fetch origin ${{ github.base_ref || 'main' }} --depth=1
+
+    - name: Run review
+      id: review
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+      run: |
+        python -m orchestrator.ci \
+          --project . \
+          --focus "${{ inputs.focus }}" \
+          --base-ref "origin/${{ github.base_ref || 'main' }}" \
+          --output review_report.md
+
+    - name: Check for HIGH risks
+      id: check
+      shell: bash
+      run: |
+        if grep -q "\[HIGH\]" review_report.md 2>/dev/null; then
+          echo "has-high-risks=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has-high-risks=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Post review comment
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('review_report.md', 'utf8');
+
+          // Find existing orchestrator comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          const marker = 'Claude Agent Orchestrator';
+          const existing = comments.find(c =>
+            c.user.type === 'Bot' && c.body.includes(marker)
+          );
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body: report,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report,
+            });
+          }

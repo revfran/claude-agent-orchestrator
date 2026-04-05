@@ -1,19 +1,231 @@
-# Project Overview
-The Claude Agent Orchestrator is a sophisticated platform designed to manage and coordinate multiple AI subagents. It provides a framework for seamless integration and interaction between various agents, each with distinct roles and functionalities.
+# Claude Agent Orchestrator
 
-# Project Structure
-The project is structured in a modular fashion, allowing for ease of development and integration. The key components include:
-- **Agent Manager**: Responsible for overseeing the operation of individual agents, managing their lifecycle, and ensuring they are functioning correctly.
-- **Communication Layer**: Facilitates interaction between agents and handles messaging, request, and response management.
-- **Data Handler**: Manages data flow, ensuring that all agents have access to the information they require to perform their tasks effectively.
-- **Logging and Monitoring**: Implements monitoring tools to track the performance and behavior of subagents, providing insights into their operations and facilitating debugging.
+A horizontal tool for reviewing and improving code in **any** project. It coordinates Claude-powered AI subagents in a pipeline with QA feedback loops — an Architect reviews design, a QA agent assesses risks, a Developer suggests fixes, and a Reporter compiles actionable findings.
 
-# Purpose
-The primary purpose of the Claude Agent Orchestrator is to enhance the capabilities of AI systems by coordinating the work of specialized agents. This allows for more efficient problem-solving, as each agent can focus on its area of expertise, leading to faster and more effective outcomes.
+Works with **Claude Code Pro/Max subscriptions** (no API key needed) or with a direct Anthropic API key.
 
-# Subagent Roles
-Each subagent in the system has a specific role which contributes to the overall performance of the orchestrator. Examples of roles may include:
-- **Data Acquisition Agent**: Gathers data from various sources.
-- **Processing Agent**: Analyzes and processes the data to extract meaningful insights.
-- **Decision-Making Agent**: Utilizes processed data to make informed decisions or recommendations.
-- **Reporting Agent**: Generates reports and visualizations based on the actions and outcomes of the other agents.
+## Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- A way to access Claude (see [Usage Options](#usage-options) below)
+
+### Install
+
+```bash
+git clone https://github.com/revfran/claude-agent-orchestrator.git
+cd claude-agent-orchestrator
+pip install -e ".[dev]"
+```
+
+### Run Tests
+
+```bash
+pytest tests/ -v
+```
+
+All 44 tests use mocked Claude responses — no API key or subscription needed.
+
+## Reviewing Any Project (Claude Code Pro/Max)
+
+The primary use case: point the orchestrator at **any codebase** and get a structured review with risk assessments and concrete fixes. No API key needed — Claude Code is the AI.
+
+### From Any Project Directory
+
+Open Claude Code in the project you want to review, then:
+
+```
+> Use the orchestrator at ~/claude-agent-orchestrator to review this project for security issues
+```
+
+Claude Code will read the `CLAUDE.md` from the orchestrator repo, scan your project files, and follow the 6-stage pipeline:
+
+1. **Data Acquisition** — scan project structure, languages, configs
+2. **Architecture Review** — analyze design patterns, coupling, separation of concerns
+3. **QA Risk Assessment** — classify risks as HIGH/MEDIUM/LOW, flag blockers
+4. **Code Review** — find bugs, vulnerabilities, quality issues with file:line references
+5. **QA Code Assessment** — assess code risks, generate test cases
+6. **Final Report** — prioritized action items with concrete fixes
+
+### Programmatic Usage
+
+You can also use the scanner directly from Python:
+
+```python
+from orchestrator.review import scan_project, format_review_for_claude_code
+
+# Scan any project
+ctx = scan_project("/path/to/any/project")
+
+# Generate the full review document
+review = format_review_for_claude_code(ctx, focus="security")
+# focus options: "general", "security", "performance", "quality"
+
+# Or review specific files only
+review = format_review_for_claude_code(ctx, focus="quality", files=["src/auth.py"])
+```
+
+### Focus Areas
+
+| Focus | What it checks |
+|-------|---------------|
+| `general` | Overall code quality, maintainability, correctness |
+| `security` | Injection, auth issues, data exposure, OWASP Top 10 |
+| `performance` | N+1 queries, blocking calls, resource leaks, complexity |
+| `quality` | DRY violations, naming, error handling, test coverage |
+
+### With an Anthropic API Key
+
+If you have a direct API key, you can also run the full async pipeline:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+python -m examples.demo_pipeline
+```
+
+## Architecture
+
+The orchestrator coordinates 5 agents in a pipeline with QA feedback loops:
+
+```
+User Query ──▶ Data Acquisition ──▶ Architect ──▶ QA Review ──▶ Developer ──▶ QA Review ──▶ Reporting ──▶ Final Report
+                                        ▲            │               ▲            │
+                                        └── revision ┘               └── revision ┘
+```
+
+| Agent | Role |
+|-------|------|
+| **Data Acquisition** | Gathers requirements, context, and data from the input query |
+| **Architect** | Designs solution architecture; revises based on QA findings |
+| **QA** | Reviews architecture and code for risks; generates test cases |
+| **Developer** | Implements solution code; fixes issues from QA review |
+| **Reporting** | Generates final report with architecture, code, tests, and risk log |
+
+The QA agent sits at two checkpoints and classifies risks as HIGH/MEDIUM/LOW. HIGH severity risks block progression and require revision (max 2 iterations per checkpoint).
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical architecture, message format, channel topology, and guide on creating custom agents.
+
+## Project Structure
+
+```
+src/orchestrator/
+├── core/                  # Framework infrastructure
+│   ├── agent_base.py      # BaseAgent ABC — all agents extend this
+│   ├── agent_manager.py   # Agent lifecycle management
+│   ├── communication.py   # MessageBus (async pub/sub via queues)
+│   ├── data_handler.py    # Shared async key-value store
+│   └── logging_monitor.py # Logging and per-agent metrics
+├── models/                # Pydantic data models
+│   ├── messages.py        # Message schema
+│   ├── config.py          # Agent and orchestrator configuration
+│   └── state.py           # AgentState enum
+├── agents/                # Subagent implementations
+│   ├── acquisition.py     # Data Acquisition Agent
+│   ├── architect.py       # Architect Agent
+│   ├── qa.py              # QA Agent (risk assessment + tests)
+│   ├── developer.py       # Developer Agent
+│   └── reporting.py       # Reporting Agent
+├── pipeline.py            # Pipeline builder with QA feedback loops
+├── orchestrator.py        # Top-level Orchestrator facade
+├── review.py              # Project scanner for reviewing external codebases
+└── ci.py                  # CI runner — reviews PRs and posts reports
+```
+
+## GitHub Action (Use in Any Project)
+
+Add the orchestrator as a GitHub Action to get automated reviews on every PR. The review report is posted as a PR comment.
+
+**Add to your project** (`.github/workflows/orchestrator-review.yml`):
+
+```yaml
+name: Orchestrator Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run orchestrator review
+        uses: revfran/claude-agent-orchestrator@main
+        with:
+          focus: "security"  # or: general, performance, quality
+```
+
+**Two modes:**
+
+| Mode | Trigger | What it does |
+|------|---------|-------------|
+| **Structural** (default) | No API key | Scans files for risk patterns (command injection, eval, hardcoded secrets, bare excepts, missing tests). Fast, free, deterministic. |
+| **AI-powered** | `ANTHROPIC_API_KEY` secret set | Runs the full 5-agent pipeline with QA feedback loops. Produces architecture review, code review, risk assessment, and concrete fixes. |
+
+To enable AI mode, add your API key as a repository secret and pass it:
+
+```yaml
+      - uses: revfran/claude-agent-orchestrator@main
+        with:
+          focus: "security"
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Outputs:**
+
+| Output | Description |
+|--------|------------|
+| `report-file` | Path to the review report markdown file (`review_report.md`) |
+| `has-high-risks` | `"true"` if HIGH severity risks were found |
+
+You can use these to gate merges:
+
+```yaml
+      - name: Fail if high risks
+        if: steps.review.outputs.has-high-risks == 'true'
+        run: exit 1
+```
+
+## Benchmarks
+
+The project includes an orchestration benchmark suite that measures pipeline performance using deterministic mock responses (no API key needed):
+
+```bash
+# Run benchmarks
+python -m benchmarks.run_benchmark --iterations 5
+
+# Compare against baseline
+python -m benchmarks.run_benchmark --iterations 5 --output current.json --compare benchmarks/baseline.json
+```
+
+Three scenarios are tested:
+- **no_revisions** — happy path, all QA reviews pass
+- **arch_revision** — QA blocks architecture, architect revises
+- **code_revision** — QA blocks code (command injection), developer fixes
+
+A GitHub Action runs benchmarks on every PR and posts comparison results as a comment.
+
+## Development
+
+```bash
+# Install with dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v
+
+# Run benchmarks
+python -m benchmarks.run_benchmark
+```
+
+## License
+
+MIT

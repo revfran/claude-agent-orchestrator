@@ -1,6 +1,8 @@
 # Claude Agent Orchestrator
 
-A Python async framework that coordinates multiple Claude-powered AI subagents in a pipeline with QA feedback loops. Each agent has a specialized role, and a QA agent reviews outputs at critical checkpoints, sending work back for revision when risks are found.
+A horizontal tool for reviewing and improving code in **any** project. It coordinates Claude-powered AI subagents in a pipeline with QA feedback loops — an Architect reviews design, a QA agent assesses risks, a Developer suggests fixes, and a Reporter compiles actionable findings.
+
+Works with **Claude Code Pro/Max subscriptions** (no API key needed) or with a direct Anthropic API key.
 
 ## Quick Start
 
@@ -23,92 +25,63 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-All 34 tests use mocked Claude responses — no API key or subscription needed.
+All 44 tests use mocked Claude responses — no API key or subscription needed.
 
-## Usage Options
+## Reviewing Any Project (Claude Code Pro/Max)
 
-### Option 1: Claude Code (Pro/Max Subscription)
+The primary use case: point the orchestrator at **any codebase** and get a structured review with risk assessments and concrete fixes. No API key needed — Claude Code is the AI.
 
-If you have a **Claude Code Pro** or **Max** subscription, you can use Claude Code itself to run and interact with the orchestrator — no API key required.
+### From Any Project Directory
 
-**Using the CLI:**
+Open Claude Code in the project you want to review, then:
 
-```bash
-# Open Claude Code in the project directory
-claude
-
-# Then ask Claude to run the pipeline:
-> Run the demo pipeline from examples/demo_pipeline.py with a query about designing a REST API
-
-# Or interact with individual components:
-> Create a DataAcquisitionAgent and process the query "Design a caching layer for a web app"
+```
+> Use the orchestrator at ~/claude-agent-orchestrator to review this project for security issues
 ```
 
-**Using Claude Code in your IDE (VS Code / JetBrains):**
+Claude Code will read the `CLAUDE.md` from the orchestrator repo, scan your project files, and follow the 6-stage pipeline:
 
-1. Open the project in your IDE with the Claude Code extension installed
-2. Ask Claude to run or modify the orchestrator pipeline
-3. Claude has full access to the codebase and can execute the agents
+1. **Data Acquisition** — scan project structure, languages, configs
+2. **Architecture Review** — analyze design patterns, coupling, separation of concerns
+3. **QA Risk Assessment** — classify risks as HIGH/MEDIUM/LOW, flag blockers
+4. **Code Review** — find bugs, vulnerabilities, quality issues with file:line references
+5. **QA Code Assessment** — assess code risks, generate test cases
+6. **Final Report** — prioritized action items with concrete fixes
 
-**Key points for Claude Code users:**
-- Claude Code runs on your subscription — no separate API billing
-- You can ask Claude to modify agent behavior, add new agents, or adjust the pipeline
-- Claude can run the benchmarks (`python -m benchmarks.run_benchmark`) to test changes
-- The test suite (`pytest tests/ -v`) always works without any API access
+### Programmatic Usage
 
-### Option 2: Anthropic API Key
+You can also use the scanner directly from Python:
 
-If you have a direct Anthropic API key (from [console.anthropic.com](https://console.anthropic.com)):
+```python
+from orchestrator.review import scan_project, format_review_for_claude_code
+
+# Scan any project
+ctx = scan_project("/path/to/any/project")
+
+# Generate the full review document
+review = format_review_for_claude_code(ctx, focus="security")
+# focus options: "general", "security", "performance", "quality"
+
+# Or review specific files only
+review = format_review_for_claude_code(ctx, focus="quality", files=["src/auth.py"])
+```
+
+### Focus Areas
+
+| Focus | What it checks |
+|-------|---------------|
+| `general` | Overall code quality, maintainability, correctness |
+| `security` | Injection, auth issues, data exposure, OWASP Top 10 |
+| `performance` | N+1 queries, blocking calls, resource leaks, complexity |
+| `quality` | DRY violations, naming, error handling, test coverage |
+
+### With an Anthropic API Key
+
+If you have a direct API key, you can also run the full async pipeline:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 python -m examples.demo_pipeline
-```
-
-### Option 3: Claude Agent SDK
-
-You can integrate the orchestrator into applications built with the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents/agent-sdk):
-
-```python
-import asyncio
-from orchestrator.orchestrator import Orchestrator
-from orchestrator.models.config import OrchestratorConfig
-from orchestrator.pipeline import Pipeline
-from orchestrator.agents.acquisition import DataAcquisitionAgent
-from orchestrator.agents.architect import ArchitectAgent
-from orchestrator.agents.qa import QAAgent
-from orchestrator.agents.developer import DeveloperAgent
-from orchestrator.agents.reporting import ReportingAgent
-from orchestrator.models.config import AgentConfig
-from orchestrator.models.messages import Message
-
-async def run():
-    config = OrchestratorConfig()
-    orch = Orchestrator(config)
-    client = orch.agent_manager.claude_client
-
-    pipe = Pipeline(orch)
-    pipe.set_acquisition(DataAcquisitionAgent(AgentConfig(agent_id="acq", agent_type="acquisition"), client))
-    pipe.set_architect(ArchitectAgent(AgentConfig(agent_id="arch", agent_type="architect"), client))
-    pipe.set_qa(QAAgent(AgentConfig(agent_id="qa", agent_type="qa", max_revisions=2), client))
-    pipe.set_developer(DeveloperAgent(AgentConfig(agent_id="dev", agent_type="developer"), client))
-    pipe.set_reporting(ReportingAgent(AgentConfig(agent_id="rep", agent_type="reporting"), client))
-    input_channel = pipe.build()
-
-    output_queue = asyncio.Queue()
-    orch.agent_manager.message_bus.subscribe("pipeline_output", output_queue)
-    await orch.run()
-
-    await orch.agent_manager.message_bus.publish(input_channel, Message(
-        source="user", target=input_channel,
-        payload={"query": "Design a REST API with authentication", "sources": []},
-    ))
-
-    result = await asyncio.wait_for(output_queue.get(), timeout=300)
-    print(result.payload["report"])
-    await orch.shutdown()
-
-asyncio.run(run())
 ```
 
 ## Architecture
@@ -154,7 +127,8 @@ src/orchestrator/
 │   ├── developer.py       # Developer Agent
 │   └── reporting.py       # Reporting Agent
 ├── pipeline.py            # Pipeline builder with QA feedback loops
-└── orchestrator.py        # Top-level Orchestrator facade
+├── orchestrator.py        # Top-level Orchestrator facade
+└── review.py              # Project scanner for reviewing external codebases
 ```
 
 ## Benchmarks

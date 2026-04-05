@@ -183,7 +183,7 @@ To enable AI mode, add your API key as a repository secret and pass it:
 
 | Output | Description |
 |--------|------------|
-| `report` | The full review report in markdown |
+| `report-file` | Path to the review report markdown file (`review_report.md`) |
 | `has-high-risks` | `"true"` if HIGH severity risks were found |
 
 You can use these to gate merges:

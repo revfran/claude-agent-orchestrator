@@ -98,33 +98,61 @@ def build_structural_report(project_path: str, focus: str, changed_files: list[s
         # Security patterns
         if focus in ("security", "general"):
             for i, line in enumerate(content.split("\n"), 1):
-                lower = line.lower().strip()
-                if "os.system(" in lower or "subprocess.call(" in lower and "shell=true" in lower:
+                stripped = line.strip()
+                lower = stripped.lower()
+                # Skip comments and lines that are just string comparisons
+                if stripped.startswith("#"):
+                    continue
+                # Count quotes to detect if patterns appear inside strings
+                # If the pattern is preceded by a quote, it's a string reference
+                def _is_actual_call(pattern: str, text: str) -> bool:
+                    idx = text.find(pattern)
+                    if idx < 0:
+                        return False
+                    before = text[:idx]
+                    # If more opening quotes than closing before pattern, it's in a string
+                    return before.count('"') % 2 == 0 and before.count("'") % 2 == 0
+
+                if _is_actual_call("os.system(", lower) or (
+                    _is_actual_call("subprocess.call(", lower) and "shell=true" in lower
+                ):
                     risks.append(
                         f"- **[HIGH]** `{f.path}:{i}` — potential command injection"
                     )
-                if "eval(" in lower and not lower.startswith("#"):
+                if _is_actual_call("eval(", lower):
                     risks.append(
                         f"- **[HIGH]** `{f.path}:{i}` — `eval()` usage, potential code injection"
                     )
-                if "password" in lower and ("=" in lower or ":" in lower):
+                if _is_actual_call("password", lower) and ("=" in lower or ":" in lower):
                     if "getenv" not in lower and "environ" not in lower and "config" not in lower:
                         risks.append(
                             f"- **[MEDIUM]** `{f.path}:{i}` — possible hardcoded password"
                         )
-                if "# todo" in lower or "# fixme" in lower or "# hack" in lower:
-                    risks.append(
-                        f"- **[LOW]** `{f.path}:{i}` — `{line.strip()[:80]}`"
-                    )
+                # Flag TODO/FIXME/HACK comments — but only actual comments,
+                # not code that string-matches against them
+                comment_pos = stripped.find("#")
+                if comment_pos >= 0:
+                    comment_text = stripped[comment_pos:].lower()
+                    # Ensure # is not inside a string (even number of quotes before it)
+                    before_hash = stripped[:comment_pos]
+                    if before_hash.count('"') % 2 == 0 and before_hash.count("'") % 2 == 0:
+                        if "# todo" in comment_text or "# fixme" in comment_text or "# hack" in comment_text:
+                            risks.append(
+                                f"- **[LOW]** `{f.path}:{i}` — `{stripped[:80]}`"
+                            )
 
         # Quality patterns
         if focus in ("quality", "general"):
             for i, line in enumerate(content.split("\n"), 1):
-                if "except:" in line and "except Exception" not in line:
+                stripped = line.strip()
+                # Skip comments and string literals
+                if stripped.startswith("#") or stripped.startswith(("'", '"', "f'")):
+                    continue
+                if stripped == "except:" or stripped.startswith("except:"):
                     risks.append(
                         f"- **[MEDIUM]** `{f.path}:{i}` — bare `except:` catches all exceptions"
                     )
-                if "import *" in line:
+                if stripped.startswith("from ") and "import *" in stripped:
                     risks.append(
                         f"- **[LOW]** `{f.path}:{i}` — wildcard import"
                     )

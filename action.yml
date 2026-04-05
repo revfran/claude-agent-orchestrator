@@ -55,11 +55,12 @@ runs:
           --base-ref "origin/${{ github.base_ref || 'main' }}" \
           --output review_report.md
 
-        # Set output (handle multiline)
+        # Set output using a unique delimiter to avoid conflicts with report content
+        DELIMITER="ORCHESTRATOR_$(date +%s%N)"
         {
-          echo "report<<ORCHESTRATOR_EOF"
+          echo "report<<${DELIMITER}"
           cat review_report.md
-          echo "ORCHESTRATOR_EOF"
+          echo "${DELIMITER}"
         } >> "$GITHUB_OUTPUT"
 
     - name: Check for HIGH risks

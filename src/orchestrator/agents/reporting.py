@@ -17,6 +17,8 @@ class ReportingAgent(BaseAgent):
         if self.data_handler:
             full_risk_log = await self.data_handler.read("risk_log", [])
 
+        doc_updates = message.payload.get("doc_updates", "")
+
         prompt = (
             f"Generate a comprehensive structured report in markdown format.\n\n"
             f"Query: {query}\n\n"
@@ -24,13 +26,17 @@ class ReportingAgent(BaseAgent):
             f"Implementation:\n{code}\n\n"
             f"Test Cases:\n{test_cases}\n\n"
             f"Risk Log:\n{full_risk_log or risk_log}\n\n"
+            f"Documentation Updates Proposed:\n{doc_updates}\n\n"
             f"The report should include:\n"
             f"1. Executive Summary\n"
             f"2. Architecture Overview\n"
             f"3. Implementation Details\n"
             f"4. Test Coverage\n"
             f"5. Risk Assessment Log (all risks found and how they were resolved)\n"
-            f"6. Recommendations"
+            f"6. Documentation Updates — list every project doc file that must be "
+            f"created or updated to keep documentation in sync with the changes. "
+            f"For each file, state the section and the new/revised content.\n"
+            f"7. Recommendations"
         )
 
         result = await self.call_claude(prompt)

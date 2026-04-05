@@ -21,6 +21,7 @@ class AgentManager:
 
     def register(self, agent: BaseAgent):
         agent._message_bus = self.message_bus
+        self.message_bus.monitor = self.monitor
         if self.monitor:
             agent.monitor = self.monitor
         if self.data_handler:

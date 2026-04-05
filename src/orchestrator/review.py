@@ -113,7 +113,7 @@ def scan_project(project_path: str, max_files: int = MAX_TOTAL_FILES) -> Project
                 break
 
             fpath = Path(dirpath) / fname
-            rel_path = str(fpath.relative_to(root))
+            rel_path = fpath.relative_to(root).as_posix()
             ext = fpath.suffix.lower()
 
             category = _categorize_file(rel_path, ext)
@@ -179,6 +179,7 @@ def generate_review_prompt(
         - developer: code review prompt
         - qa_code: QA risk assessment prompt for code
         - reporting: final report generation prompt
+        - verification: how to know the changes will work
 
     Args:
         ctx: ProjectContext from scan_project()
@@ -319,7 +320,12 @@ For each issue found, provide:
 2. What the issue is
 3. A concrete fix (show the corrected code)
 
-Focus on actionable improvements. Don't flag style preferences — only flag things that are bugs, security issues, or clearly wrong."""
+Focus on actionable improvements. Don't flag style preferences — only flag things that are bugs, security issues, or clearly wrong.
+
+### Documentation Review
+Also review whether the project documentation (README, ARCHITECTURE.md, CLAUDE.md, \
+inline docstrings) accurately reflects the current code. Flag any gaps as findings and \
+provide the updated content."""
 
     # Stage 5: QA Code Risk Assessment
     prompts["qa_code"] = f"""## QA: Code Risk Assessment
@@ -331,6 +337,9 @@ Given the code review above, assess risks and generate test cases:
 
 For each risk:
 - **[SEVERITY]** description (file:line) — recommendation
+
+Also flag any documentation that is outdated or missing relative to the code changes:
+- **[MEDIUM]** Documentation gap: description — what docs need updating
 
 Then generate test cases that would catch the identified risks.
 Format tests as code blocks that could be added to the project."""
@@ -346,9 +355,31 @@ Compile all findings into a structured report:
 4. **Risk Assessment**: All risks ranked by severity
 5. **Suggested Fixes**: Concrete code changes (as diffs or code blocks)
 6. **Test Gaps**: Missing test coverage and suggested test cases
-7. **Action Items**: Prioritized list of next steps
+7. **Documentation Updates**: List every doc file that must be created or updated, \
+with the section and revised content
+8. **Action Items**: Prioritized list of next steps
 
 Focus on actionable items. Every finding should have a specific file reference and a concrete recommendation."""
+
+    # Stage 7: Verification — how to know the changes will work
+    prompts["verification"] = f"""## How to Know the Changes Will Work
+
+Based on the findings and recommended changes above, provide a concrete verification \
+checklist the user can follow to confirm the changes are working correctly.
+
+### Include:
+1. **Commands to run**: exact shell commands (e.g. test suites, linters, build steps)
+2. **What to observe**: specific output, log lines, or metrics that confirm success
+3. **Manual checks**: any steps that require human judgement (e.g. reviewing a log stream)
+4. **Regression signals**: what would indicate the change broke something
+
+### Guidelines:
+- Be specific: "run `pytest tests/ -v` and confirm 0 failures" not "run the tests"
+- For observability changes: show how to tail logs, what JSON fields to look for, \
+example event payloads
+- For API changes: show a curl/httpie command or Python snippet to exercise the endpoint
+- For config changes: show how to verify the config is loaded correctly
+- Keep it short — a user should be able to follow this in under 5 minutes"""
 
     return prompts
 
@@ -401,6 +432,11 @@ def format_review_for_claude_code(
         "",
         "# Stage 6: Final Report",
         prompts["reporting"],
+        "",
+        "---",
+        "",
+        "# Stage 7: How to Know the Changes Will Work",
+        prompts["verification"],
     ]
 
     return "\n".join(sections)
